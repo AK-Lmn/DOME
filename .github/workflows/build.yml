@@ -1,4 +1,4 @@
-name: Build Full Repository
+name: Build, test, and analyze
 
 on:
   push:
@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  dotnet:
-    name: Build .NET
+  verify:
+    name: Build and test
     runs-on: ubuntu-latest
 
     permissions:
@@ -77,3 +77,10 @@ jobs:
       - name: Build JavaScript
         working-directory: src/Dome.Client
         run: npm run build
+
+  docker:
+    name: Docker
+    needs: verify
+    permissions:
+      contents: read
+    uses: ./.github/workflows/docker.yml

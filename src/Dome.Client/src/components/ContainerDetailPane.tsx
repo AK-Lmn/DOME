@@ -83,7 +83,7 @@ function AccessIcon({ readOnly }: Readonly<{ readOnly: boolean }>) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className="container-volume-access-icon" aria-label={label} role="img">
+        <span className="container-volume-access-icon" aria-label={label}>
           <Icon className="size-3.5" />
         </span>
       </TooltipTrigger>

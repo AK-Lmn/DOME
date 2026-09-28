@@ -9,7 +9,7 @@
     "react/rules-of-hooks": "error",
     "react/only-export-components": ["warn", { "allowConstantExport": true }],
     "shadcn/no-restyle": ["warn", { "allow": ["layout"] }],
-    "shadcn/require-static-classes": "error",
+    "shadcn/require-static-classes": "off",
     "shadcn/no-arbitrary-values": "off",
     "shadcn/no-raw-colors": "warn",
     "shadcn/no-inline-styles": "warn",

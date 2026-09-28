@@ -63,8 +63,6 @@ export function SocketsPage() {
   const [isDeleting, setIsDeleting] = useState(false)
 
   const loadSockets = useCallback(async (signal?: AbortSignal) => {
-    setState({ status: 'loading' })
-
     try {
       const response = await fetchSockets(signal)
       if (signal?.aborted) {
@@ -84,55 +82,59 @@ export function SocketsPage() {
     }
   }, [])
 
-  const loadSocketStatuses = useCallback(
-    async (sockets: SocketRecord[], signal?: AbortSignal) => {
-      if (sockets.length === 0) {
-        setSocketStatuses({})
-        return
-      }
-
-      try {
-        const response = await fetchSocketStatuses(signal)
-        if (signal?.aborted) {
-          return
-        }
-
-        setSocketStatuses(
-          Object.fromEntries(
-            response.statuses.map((status) => [status.id, status.isReachable]),
-          ),
-        )
-      } catch {
-        if (signal?.aborted) {
-          return
-        }
-
-        setSocketStatuses(
-          Object.fromEntries(sockets.map((socket) => [socket.id, false])),
-        )
-      }
-    },
-    [],
-  )
-
   useEffect(() => {
     const controller = new AbortController()
-    void loadSockets(controller.signal)
+
+    void (async () => {
+      try {
+        const response = await fetchSockets(controller.signal)
+        if (!controller.signal.aborted) {
+          setState({ status: 'ready', sockets: response.sockets ?? [] })
+        }
+      } catch {
+        if (!controller.signal.aborted) {
+          setState({
+            status: 'error',
+            message: 'Unable to load sockets. Confirm that the API is running.',
+          })
+        }
+      }
+    })()
+
     return () => controller.abort()
-  }, [loadSockets])
+  }, [])
 
   const readySockets = state.status === 'ready' ? state.sockets : undefined
 
   useEffect(() => {
-    if (!readySockets) {
-      setSocketStatuses({})
+    if (!readySockets || readySockets.length === 0) {
       return
     }
 
+    const sockets = readySockets
     const controller = new AbortController()
-    void loadSocketStatuses(readySockets, controller.signal)
+
+    void (async () => {
+      try {
+        const response = await fetchSocketStatuses(controller.signal)
+        if (!controller.signal.aborted) {
+          setSocketStatuses(
+            Object.fromEntries(
+              response.statuses.map((status) => [status.id, status.isReachable]),
+            ),
+          )
+        }
+      } catch {
+        if (!controller.signal.aborted) {
+          setSocketStatuses(
+            Object.fromEntries(sockets.map((socket) => [socket.id, false])),
+          )
+        }
+      }
+    })()
+
     return () => controller.abort()
-  }, [loadSocketStatuses, readySockets])
+  }, [readySockets])
 
   const openCreate = () => {
     setName('')
@@ -236,7 +238,14 @@ export function SocketsPage() {
       {state.status === 'error' ? (
         <div className="flex items-center gap-3 text-sm text-destructive">
           <span>{state.message}</span>
-          <Button variant="outline" size="sm" onClick={() => void loadSockets()}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setState({ status: 'loading' })
+              void loadSockets()
+            }}
+          >
             Retry
           </Button>
         </div>

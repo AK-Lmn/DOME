@@ -359,3 +359,7 @@
   border: 1px solid var(--border) !important;
   border-radius: 0 !important;
 }
+
+.toaster {
+  /* Marker class used by the Sonner toaster wrapper. */
+}

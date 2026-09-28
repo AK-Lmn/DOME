@@ -70,6 +70,10 @@ jobs:
         working-directory: src/Dome.Client
         run: npm ci --ignore-scripts
 
+      - name: Lint JavaScript
+        working-directory: src/Dome.Client
+        run: npm run lint
+
       - name: Build JavaScript
         working-directory: src/Dome.Client
         run: npm run build

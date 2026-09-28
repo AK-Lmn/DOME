@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -33,12 +33,17 @@ export function ComposeEditorDialog({
   onSave,
 }: ComposeEditorDialogProps) {
   const [draft, setDraft] = useState(composeYaml)
+  const [draftSource, setDraftSource] = useState({ open, composeYaml })
 
-  useEffect(() => {
+  if (
+    open !== draftSource.open ||
+    (open && composeYaml !== draftSource.composeYaml)
+  ) {
+    setDraftSource({ open, composeYaml })
     if (open) {
       setDraft(composeYaml)
     }
-  }, [open, composeYaml])
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

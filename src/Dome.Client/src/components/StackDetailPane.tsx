@@ -42,23 +42,33 @@ export function StackDetailPane({
   const [isEditorOpen, setIsEditorOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const isManaged = stack.kind === 'managed' && stack.id !== null
+  const stackKey = isManaged && stack.id !== null ? `${deviceName}:${stack.id}` : null
+  const [loadedKey, setLoadedKey] = useState<string | null>(null)
+
+  if (stackKey !== loadedKey) {
+    setLoadedKey(stackKey)
+    setLoadState(stackKey ? { status: 'loading' } : { status: 'idle' })
+  }
 
   useEffect(() => {
     if (!isManaged || stack.id === null) {
-      setLoadState({ status: 'idle' })
       return
     }
 
+    const stackId = stack.id
     const controller = new AbortController()
-    setLoadState({ status: 'loading' })
 
-    void fetchDeviceStack(deviceName, stack.id, controller.signal)
-      .then((loaded) => {
+    void (async () => {
+      try {
+        const loaded = await fetchDeviceStack(
+          deviceName,
+          stackId,
+          controller.signal,
+        )
         if (!controller.signal.aborted) {
           setLoadState({ status: 'ready', stack: loaded })
         }
-      })
-      .catch((error: unknown) => {
+      } catch (error: unknown) {
         if (controller.signal.aborted) {
           return
         }
@@ -70,7 +80,8 @@ export function StackDetailPane({
               ? error.message
               : 'Unable to load this stack.',
         })
-      })
+      }
+    })()
 
     return () => controller.abort()
   }, [deviceName, isManaged, stack.id])

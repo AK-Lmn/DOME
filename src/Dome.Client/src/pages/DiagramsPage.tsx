@@ -19,7 +19,6 @@ import type { Container } from '@/types/containers'
 import type { DeviceDiagram } from '@/types/diagram'
 import { stackCanvasId } from '@/types/diagram'
 import type { Device } from '@/types/devices'
-import '@/App.css'
 
 type DevicesState =
   | { status: 'loading' }
@@ -50,22 +49,31 @@ export function DiagramsPage() {
   const [diagramState, setDiagramState] = useState<DiagramState>({
     status: 'idle',
   })
+  const [diagramDeviceName, setDiagramDeviceName] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isActionPending, setIsActionPending] = useState(false)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
 
-  const loadDevices = useCallback(async (signal?: AbortSignal) => {
-    setDevicesState({ status: 'loading' })
+  if (selectedDeviceName !== diagramDeviceName) {
+    setDiagramDeviceName(selectedDeviceName)
+    setSelectedContainerId(null)
+    setSelectedStackCanvasId(null)
+    setDiagramState(selectedDeviceName ? { status: 'loading' } : { status: 'idle' })
+    setIsRefreshing(false)
+  }
 
+  const loadDevices = useCallback(async (signal?: AbortSignal) => {
     try {
       const response = await fetchDevices(signal)
       const devices = response.devices ?? []
 
+      if (signal?.aborted) {
+        return
+      }
+
       if (devices.length === 0) {
         setSelectedDeviceName(null)
-        setSelectedContainerId(null)
-        setSelectedStackCanvasId(null)
         setDevicesState({ status: 'empty' })
         return
       }
@@ -93,9 +101,6 @@ export function DiagramsPage() {
 
   const loadDiagram = useCallback(
     async (deviceName: string, signal?: AbortSignal) => {
-      setIsRefreshing(true)
-      setDiagramState({ status: 'loading' })
-
       try {
         const diagram = await fetchDeviceDiagram(deviceName, signal)
 
@@ -129,22 +134,86 @@ export function DiagramsPage() {
 
   useEffect(() => {
     const controller = new AbortController()
-    void loadDevices(controller.signal)
+
+    void (async () => {
+      try {
+        const response = await fetchDevices(controller.signal)
+        const devices = response.devices ?? []
+
+        if (controller.signal.aborted) {
+          return
+        }
+
+        if (devices.length === 0) {
+          setSelectedDeviceName(null)
+          setDevicesState({ status: 'empty' })
+          return
+        }
+
+        setDevicesState({ status: 'ready', devices })
+        setSelectedDeviceName((current) => {
+          if (current && devices.some((device) => device.name === current)) {
+            return current
+          }
+
+          return devices[0].name
+        })
+      } catch {
+        if (controller.signal.aborted) {
+          return
+        }
+
+        setSelectedDeviceName(null)
+        setDevicesState({
+          status: 'error',
+          message: 'Unable to load devices. Confirm that the API is running.',
+        })
+      }
+    })()
+
     return () => controller.abort()
-  }, [loadDevices])
+  }, [])
 
   useEffect(() => {
     if (!selectedDeviceName) {
-      setSelectedContainerId(null)
-      setSelectedStackCanvasId(null)
-      setDiagramState({ status: 'idle' })
       return
     }
 
+    const deviceName = selectedDeviceName
     const controller = new AbortController()
-    void loadDiagram(selectedDeviceName, controller.signal)
+
+    void (async () => {
+      try {
+        const diagram = await fetchDeviceDiagram(deviceName, controller.signal)
+
+        if (controller.signal.aborted) {
+          return
+        }
+
+        if (diagram.stacks.length === 0 && diagram.containers.length === 0) {
+          setDiagramState({ status: 'empty' })
+        } else {
+          setDiagramState({ status: 'ready', diagram })
+        }
+      } catch {
+        if (controller.signal.aborted) {
+          return
+        }
+
+        setDiagramState({
+          status: 'error',
+          message:
+            'Unable to load containers. Confirm that Docker is reachable for this device.',
+        })
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsRefreshing(false)
+        }
+      }
+    })()
+
     return () => controller.abort()
-  }, [selectedDeviceName, loadDiagram])
+  }, [selectedDeviceName])
 
   const statusBanner = (() => {
     if (devicesState.status === 'loading') {
@@ -170,7 +239,10 @@ export function DiagramsPage() {
         className: 'status-banner status-banner-error',
         text: devicesState.message,
         showRetry: true,
-        onRetry: () => void loadDevices(),
+        onRetry: () => {
+          setDevicesState({ status: 'loading' })
+          void loadDevices()
+        },
       }
     }
 
@@ -195,7 +267,11 @@ export function DiagramsPage() {
           text: diagramState.message,
           showRetry: true,
           onRetry: selectedDeviceName
-            ? () => void loadDiagram(selectedDeviceName)
+            ? () => {
+                setIsRefreshing(true)
+                setDiagramState({ status: 'loading' })
+                void loadDiagram(selectedDeviceName)
+              }
             : undefined,
         }
       default:
@@ -222,6 +298,7 @@ export function DiagramsPage() {
     selectedDeviceName !== null && devicesState.status === 'ready'
   const canCreateStack =
     selectedDeviceName !== null && devicesState.status === 'ready'
+  const detailOpen = selectedContainer !== null || selectedStack !== null
 
   const runContainerAction = useCallback(
     async (action: 'start' | 'stop', container: Container) => {
@@ -306,33 +383,6 @@ export function DiagramsPage() {
     [loadDiagram, selectedDeviceName],
   )
 
-  useEffect(() => {
-    if (diagramState.status !== 'ready' && diagramState.status !== 'empty') {
-      return
-    }
-
-    const listedContainers =
-      diagramState.status === 'ready' ? diagramState.diagram.containers : []
-    const listedStacks =
-      diagramState.status === 'ready' ? diagramState.diagram.stacks : []
-
-    if (
-      selectedContainerId &&
-      !listedContainers.some((container) => container.id === selectedContainerId)
-    ) {
-      setSelectedContainerId(null)
-    }
-
-    if (
-      selectedStackCanvasId &&
-      !listedStacks.some((stack) => stackCanvasId(stack) === selectedStackCanvasId)
-    ) {
-      setSelectedStackCanvasId(null)
-    }
-  }, [diagramState, selectedContainerId, selectedStackCanvasId])
-
-  const detailOpen = selectedContainer !== null || selectedStack !== null
-
   return (
     <div className="app-page">
       <div className="flex shrink-0 items-center justify-end gap-2 border-b px-4 py-2">
@@ -348,6 +398,8 @@ export function DiagramsPage() {
           disabled={!canRefresh || isRefreshing}
           onClick={() => {
             if (selectedDeviceName) {
+              setIsRefreshing(true)
+              setDiagramState({ status: 'loading' })
               void loadDiagram(selectedDeviceName)
             }
           }}
@@ -365,7 +417,7 @@ export function DiagramsPage() {
       ) : null}
 
       {statusBanner ? (
-        <div className={statusBanner.className} role="status">
+        <div className={statusBanner.className} aria-live="polite">
           <span>{statusBanner.text}</span>
           {statusBanner.showRetry && statusBanner.onRetry ? (
             <Button

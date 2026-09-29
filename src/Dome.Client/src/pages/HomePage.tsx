@@ -24,60 +24,56 @@ type HomeState =
       unreachableCount: number
     }
 
+async function fetchHomeSummary(signal?: AbortSignal): Promise<HomeState> {
+  const response = await fetchSockets(signal)
+  const sockets = response.sockets ?? []
+
+  const results = await Promise.all(
+    sockets.map(async (socket: SocketRecord) => {
+      try {
+        const containersResponse = await fetchDeviceContainers(
+          socket.name,
+          signal,
+        )
+        const containers = containersResponse.containers ?? []
+        const runningCount = containers.filter(
+          (container) => container.state.toLowerCase() === 'running',
+        ).length
+
+        return {
+          containerCount: containers.length,
+          runningCount,
+          unreachable: false,
+        }
+      } catch {
+        return { containerCount: 0, runningCount: 0, unreachable: true }
+      }
+    }),
+  )
+
+  return {
+    status: 'ready',
+    socketCount: sockets.length,
+    containerCount: results.reduce(
+      (sum, result) => sum + result.containerCount,
+      0,
+    ),
+    runningCount: results.reduce((sum, result) => sum + result.runningCount, 0),
+    unreachableCount: results.filter((result) => result.unreachable).length,
+  }
+}
+
 export function HomePage() {
   const [state, setState] = useState<HomeState>({ status: 'loading' })
 
   const loadSummary = useCallback(async (signal?: AbortSignal) => {
-    setState({ status: 'loading' })
-
     try {
-      const response = await fetchSockets(signal)
-      const sockets = response.sockets ?? []
-
+      const nextState = await fetchHomeSummary(signal)
       if (signal?.aborted) {
         return
       }
 
-      const results = await Promise.all(
-        sockets.map(async (socket: SocketRecord) => {
-          try {
-            const containersResponse = await fetchDeviceContainers(
-              socket.name,
-              signal,
-            )
-            const containers = containersResponse.containers ?? []
-            const runningCount = containers.filter(
-              (container) => container.state.toLowerCase() === 'running',
-            ).length
-
-            return {
-              containerCount: containers.length,
-              runningCount,
-              unreachable: false,
-            }
-          } catch {
-            return { containerCount: 0, runningCount: 0, unreachable: true }
-          }
-        }),
-      )
-
-      if (signal?.aborted) {
-        return
-      }
-
-      setState({
-        status: 'ready',
-        socketCount: sockets.length,
-        containerCount: results.reduce(
-          (sum, result) => sum + result.containerCount,
-          0,
-        ),
-        runningCount: results.reduce(
-          (sum, result) => sum + result.runningCount,
-          0,
-        ),
-        unreachableCount: results.filter((result) => result.unreachable).length,
-      })
+      setState(nextState)
     } catch {
       if (signal?.aborted) {
         return
@@ -92,9 +88,26 @@ export function HomePage() {
 
   useEffect(() => {
     const controller = new AbortController()
-    void loadSummary(controller.signal)
+
+    void (async () => {
+      try {
+        const nextState = await fetchHomeSummary(controller.signal)
+        if (!controller.signal.aborted) {
+          setState(nextState)
+        }
+      } catch {
+        if (!controller.signal.aborted) {
+          setState({
+            status: 'error',
+            message:
+              'Unable to load dashboard data. Confirm that the API is running.',
+          })
+        }
+      }
+    })()
+
     return () => controller.abort()
-  }, [loadSummary])
+  }, [])
 
   return (
     <div className="flex flex-1 flex-col gap-6 overflow-auto p-6">
@@ -112,7 +125,14 @@ export function HomePage() {
       {state.status === 'error' ? (
         <div className="flex items-center gap-3 text-sm text-destructive">
           <span>{state.message}</span>
-          <Button variant="outline" size="sm" onClick={() => void loadSummary()}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setState({ status: 'loading' })
+              void loadSummary()
+            }}
+          >
             Retry
           </Button>
         </div>

@@ -1,8 +1,29 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
+  "plugins": ["eslint", "unicorn", "typescript", "oxc", "react", "jsx-a11y"],
+  "jsPlugins": ["@shadcn/lint"],
+  "categories": {
+    "correctness": "error"
+  },
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    "shadcn/no-restyle": ["warn", { "allow": ["layout"] }],
+    "shadcn/require-static-classes": "off",
+    "shadcn/no-arbitrary-values": "off",
+    "shadcn/no-raw-colors": "warn",
+    "shadcn/no-inline-styles": "warn",
+    "shadcn/no-unknown-classes": "error"
+  },
+  "overrides": [
+    {
+      "files": ["src/components/ui/**"],
+      "rules": {
+        "shadcn/no-restyle": "off",
+        "react/only-export-components": "off",
+        "react/purity": "off",
+        "jsx-a11y/prefer-tag-over-role": "off"
+      }
+    }
+  ]
 }

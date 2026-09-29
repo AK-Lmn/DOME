@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -28,13 +28,15 @@ export function CreateStackDialog({
 }: CreateStackDialogProps) {
   const [projectName, setProjectName] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
+  const [wasOpen, setWasOpen] = useState(open)
 
-  useEffect(() => {
+  if (open !== wasOpen) {
+    setWasOpen(open)
     if (open) {
       setProjectName('')
       setFormError(null)
     }
-  }, [open])
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -66,7 +68,6 @@ export function CreateStackDialog({
               value={projectName}
               onChange={(event) => setProjectName(event.target.value)}
               placeholder="my-stack"
-              autoFocus
               autoComplete="off"
             />
           </div>

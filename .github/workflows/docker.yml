@@ -1,16 +1,9 @@
 name: Docker
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_call:
 
 permissions: {}
-
-concurrency:
-  group: docker-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 env:
   PLATFORMS: linux/amd64,linux/arm64

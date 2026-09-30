@@ -10,13 +10,14 @@ import { fetchDevices } from '@/api/devices'
 import { createDeviceStack, deployDeviceStack } from '@/api/stacks'
 import { ContainerDetailPane } from '@/components/ContainerDetailPane'
 import { ContainerDiagram } from '@/components/ContainerDiagram'
+import { DiagramDetailSlot } from '@/components/DiagramDetailSlot'
 import { CreateStackDialog } from '@/components/CreateStackDialog'
 import { DeviceTabs } from '@/components/DeviceTabs'
 import { StackDetailPane } from '@/components/StackDetailPane'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import type { Container } from '@/types/containers'
-import type { DeviceDiagram } from '@/types/diagram'
+import type { DeviceDiagram, DiagramStack } from '@/types/diagram'
 import { stackCanvasId } from '@/types/diagram'
 import type { Device } from '@/types/devices'
 
@@ -32,6 +33,10 @@ type DiagramState =
   | { status: 'ready'; diagram: DeviceDiagram }
   | { status: 'empty' }
   | { status: 'error'; message: string }
+
+type RenderedDetail =
+  | { kind: 'container'; container: Container }
+  | { kind: 'stack'; stack: DiagramStack; deviceName: string }
 
 export function DiagramsPage() {
   const [devicesState, setDevicesState] = useState<DevicesState>({
@@ -54,6 +59,9 @@ export function DiagramsPage() {
   const [isActionPending, setIsActionPending] = useState(false)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
+  const [renderedDetail, setRenderedDetail] = useState<RenderedDetail | null>(
+    null,
+  )
 
   if (selectedDeviceName !== diagramDeviceName) {
     setDiagramDeviceName(selectedDeviceName)
@@ -300,6 +308,27 @@ export function DiagramsPage() {
     selectedDeviceName !== null && devicesState.status === 'ready'
   const detailOpen = selectedContainer !== null || selectedStack !== null
 
+  if (selectedContainer) {
+    if (
+      renderedDetail?.kind !== 'container' ||
+      renderedDetail.container !== selectedContainer
+    ) {
+      setRenderedDetail({ kind: 'container', container: selectedContainer })
+    }
+  } else if (selectedStack && selectedDeviceName) {
+    if (
+      renderedDetail?.kind !== 'stack' ||
+      renderedDetail.stack !== selectedStack ||
+      renderedDetail.deviceName !== selectedDeviceName
+    ) {
+      setRenderedDetail({
+        kind: 'stack',
+        stack: selectedStack,
+        deviceName: selectedDeviceName,
+      })
+    }
+  }
+
   const runContainerAction = useCallback(
     async (action: 'start' | 'stop', container: Container) => {
       if (!selectedDeviceName) {
@@ -433,9 +462,7 @@ export function DiagramsPage() {
         </div>
       ) : null}
 
-      <main
-        className={`diagram-shell${detailOpen ? ' diagram-shell-with-detail' : ''}`}
-      >
+      <main className="diagram-shell">
         <section className="diagram-canvas">
           {selectedDeviceName ? (
             <ContainerDiagram
@@ -450,32 +477,44 @@ export function DiagramsPage() {
             />
           ) : null}
         </section>
-        {selectedContainer ? (
-          <ContainerDetailPane
-            container={selectedContainer}
-            onClose={() => setSelectedContainerId(null)}
-            isActionPending={isActionPending || isRefreshing}
-            onStart={() => {
-              void runContainerAction('start', selectedContainer)
-            }}
-            onStop={() => {
-              void runContainerAction('stop', selectedContainer)
-            }}
-          />
-        ) : null}
-        {selectedStack && selectedDeviceName && !selectedContainer ? (
-          <StackDetailPane
-            deviceName={selectedDeviceName}
-            stack={selectedStack}
-            onClose={() => setSelectedStackCanvasId(null)}
-            isActionPending={isActionPending || isRefreshing}
-            onDeploy={() => {
-              if (selectedStack.id) {
-                void deployStack(selectedStack.id, selectedStack.projectName)
-              }
-            }}
-          />
-        ) : null}
+        <DiagramDetailSlot
+          open={detailOpen}
+          onCloseAnimationEnd={() => {
+            if (!detailOpen) {
+              setRenderedDetail(null)
+            }
+          }}
+        >
+          {renderedDetail?.kind === 'container' ? (
+            <ContainerDetailPane
+              container={renderedDetail.container}
+              onClose={() => setSelectedContainerId(null)}
+              isActionPending={isActionPending || isRefreshing}
+              onStart={() => {
+                void runContainerAction('start', renderedDetail.container)
+              }}
+              onStop={() => {
+                void runContainerAction('stop', renderedDetail.container)
+              }}
+            />
+          ) : null}
+          {renderedDetail?.kind === 'stack' ? (
+            <StackDetailPane
+              deviceName={renderedDetail.deviceName}
+              stack={renderedDetail.stack}
+              onClose={() => setSelectedStackCanvasId(null)}
+              isActionPending={isActionPending || isRefreshing}
+              onDeploy={() => {
+                if (renderedDetail.stack.id) {
+                  void deployStack(
+                    renderedDetail.stack.id,
+                    renderedDetail.stack.projectName,
+                  )
+                }
+              }}
+            />
+          ) : null}
+        </DiagramDetailSlot>
       </main>
 
       <CreateStackDialog

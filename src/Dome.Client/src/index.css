@@ -51,6 +51,8 @@
   --sidebar-accent-foreground: #e6edf3;
   --sidebar-border: #2a3340;
   --sidebar-ring: #5a9fff;
+  --pane-duration: 180ms;
+  --pane-easing: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @theme inline {
@@ -89,6 +91,14 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+}
+
+@utility duration-pane {
+  transition-duration: var(--pane-duration);
+}
+
+@utility ease-pane {
+  transition-timing-function: var(--pane-easing);
 }
 
 @layer base {

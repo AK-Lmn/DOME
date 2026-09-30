@@ -70,7 +70,6 @@ function toGraph(diagram: DeviceDiagram): {
 
   for (const stack of diagram.stacks) {
     const members = membersByProject.get(stack.projectName) ?? []
-    const totalBytes = members.reduce((sum, c) => sum + (c.totalBytes || 0), 0)
     const stackId = stackCanvasId(stack)
     const width = groupWidth(members.length)
     const stackX = cursorX + (width - STACK_NODE_WIDTH) / 2
@@ -90,7 +89,7 @@ function toGraph(diagram: DeviceDiagram): {
       data: {
         name: stack.projectName,
         kind: stack.kind,
-        totalBytes,
+        totalBytes: stack.totalBytes,
       },
     })
 

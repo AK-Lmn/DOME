@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
 
 import {
@@ -36,7 +36,7 @@ type DiagramState =
 
 type RenderedDetail =
   | { kind: 'container'; container: Container }
-  | { kind: 'stack'; stack: DiagramStack; deviceName: string; totalBytes?: number }
+  | { kind: 'stack'; stack: DiagramStack; deviceName: string }
 
 export function DiagramsPage() {
   const [devicesState, setDevicesState] = useState<DevicesState>({
@@ -302,14 +302,6 @@ export function DiagramsPage() {
       ? null
       : diagram.stacks.find((stack) => stackCanvasId(stack) === selectedStackCanvasId) ??
         null
-  const stackTotalBytes = useMemo(() => {
-    if (!selectedStack) {
-      return 0
-    }
-    return diagram.containers
-      .filter((c) => c.stack === selectedStack.projectName)
-      .reduce((sum, c) => sum + (c.totalBytes || 0), 0)
-  }, [diagram.containers, selectedStack])
   const canRefresh =
     selectedDeviceName !== null && devicesState.status === 'ready'
   const canCreateStack =
@@ -327,14 +319,12 @@ export function DiagramsPage() {
     if (
       renderedDetail?.kind !== 'stack' ||
       renderedDetail.stack !== selectedStack ||
-      renderedDetail.deviceName !== selectedDeviceName ||
-      renderedDetail.totalBytes !== stackTotalBytes
+      renderedDetail.deviceName !== selectedDeviceName
     ) {
       setRenderedDetail({
         kind: 'stack',
         stack: selectedStack,
         deviceName: selectedDeviceName,
-        totalBytes: stackTotalBytes,
       })
     }
   }
@@ -512,7 +502,6 @@ export function DiagramsPage() {
             <StackDetailPane
               deviceName={renderedDetail.deviceName}
               stack={renderedDetail.stack}
-              totalBytes={renderedDetail.totalBytes}
               onClose={() => setSelectedStackCanvasId(null)}
               isActionPending={isActionPending || isRefreshing}
               onDeploy={() => {

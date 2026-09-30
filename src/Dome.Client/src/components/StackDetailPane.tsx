@@ -21,7 +21,6 @@ import type { DeviceStack } from '@/types/stacks'
 type StackDetailPaneProps = {
   deviceName: string
   stack: DiagramStack
-  totalBytes?: number
   onClose: () => void
   isActionPending: boolean
   onDeploy: () => void
@@ -36,7 +35,6 @@ type StackLoadState =
 export function StackDetailPane({
   deviceName,
   stack,
-  totalBytes,
   onClose,
   isActionPending,
   onDeploy,
@@ -142,7 +140,7 @@ export function StackDetailPane({
               <Badge variant="outline">
                 {stack.kind === 'readonly' ? 'Read-only' : 'Managed'}
               </Badge>
-              <Badge variant="outline">{formatBytes(totalBytes ?? 0)}</Badge>
+              <Badge variant="outline">{formatBytes(stack.totalBytes ?? 0)}</Badge>
             </div>
             {isManaged ? (
               <div className="container-detail-actions">

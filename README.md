@@ -76,6 +76,20 @@ src/
     Dome.Socket.Contracts/  Refit interface and transport contracts
 ```
 
+## Technical prerequisites
+
+Install these tools before building or running DOME from a checkout:
+
+- [Git](https://git-scm.com/) to clone the repository
+- [Docker Engine](https://docs.docker.com/engine/) with Docker Compose v2 for
+  the Docker-based modes
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0), using the
+  version selected by `global.json`, for local Server and Socket builds
+- [Node.js 22 or later](https://nodejs.org/) and npm for local Client builds
+
+The Docker-based source build runs the .NET SDK and Node.js builds inside Docker,
+so it only requires Docker Engine with Compose v2 on the host.
+
 ## Choose how to run DOME
 
 | Mode | Best for | Requirements | Client URL |
@@ -89,9 +103,6 @@ src/
 ### Prerequisites
 
 - A recent JetBrains Rider version with .NET 10 support
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0), using the
-  version selected by `global.json`
-- [Node.js 22 or later](https://nodejs.org/) and npm
 - A running Docker Engine, such as Docker Desktop on macOS or Linux
 
 Clone the repository and install the frontend dependencies:
